@@ -33,17 +33,17 @@ export async function handler(event, context) {
 
     switch (method) {
       case 'GET':
-        return await getTripData(tripId, headers);
+        return await getTripData(client, tripId, headers);
 
       case 'POST':
-        return await createStop(JSON.parse(event.body), headers);
+        return await createStop(client, JSON.parse(event.body), headers);
 
       case 'PUT':
-        return await updateStop(JSON.parse(event.body), headers);
+        return await updateStop(client, JSON.parse(event.body), headers);
 
       case 'DELETE':
         const { stopId } = event.queryStringParameters || {};
-        return await deleteStop(stopId, headers);
+        return await deleteStop(client, stopId, headers);
 
       default:
         return {
@@ -67,7 +67,7 @@ export async function handler(event, context) {
   }
 }
 
-async function getTripData(tripId, headers) {
+async function getTripData(client, tripId, headers) {
   const query = `
     SELECT
       day_number,
@@ -120,7 +120,7 @@ async function getTripData(tripId, headers) {
   };
 }
 
-async function createStop(stopData, headers) {
+async function createStop(client, stopData, headers) {
   const { dayNumber, name, latitude, longitude, notes, tripId = 1 } = stopData;
 
   // Get the trip_day_id
@@ -170,7 +170,7 @@ async function createStop(stopData, headers) {
   };
 }
 
-async function updateStop(stopData, headers) {
+async function updateStop(client, stopData, headers) {
   const { stopId, name, latitude, longitude, notes } = stopData;
 
   const query = `
@@ -200,7 +200,7 @@ async function updateStop(stopData, headers) {
   };
 }
 
-async function deleteStop(stopId, headers) {
+async function deleteStop(client, stopId, headers) {
   const query = `DELETE FROM stops WHERE id = $1 RETURNING id`;
   const result = await client.query(query, [stopId]);
 
