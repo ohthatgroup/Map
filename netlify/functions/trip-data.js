@@ -1,14 +1,13 @@
 // Netlify Function to serve trip data from Neon PostgreSQL
 import { Client } from 'pg';
 
-const client = new Client({
-  connectionString: process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
-
 export async function handler(event, context) {
+  const client = new Client({
+    connectionString: process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false
+    }
+  });
   // Enable CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
