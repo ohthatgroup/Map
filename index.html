@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Trip Planner</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', sans-serif;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+#map {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Loading State */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.loading-content {
+  text-align: center;
+  color: white;
+}
+
+.loading-spinner {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.hidden { display: none; }
+
+/* Day Buttons Container */
+.day-buttons-container {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 350px;
+  z-index: 1000;
+}
+
+/* Individual Day Button */
+.day-btn {
+  backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: rgba(50, 50, 50, 0.9);
+  font-size: 13px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+  min-width: 80px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.day-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.day-btn.expanded {
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.day-btn-main {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.day-btn-date {
+  font-size: 11px;
+  opacity: 0.8;
+  font-weight: 400;
+}
+
+/* Expanded Content */
+.expanded-content {
+  position: absolute;
+  top: 20px;
+  right: 380px;
+  width: 400px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  z-index: 999;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.expanded-content.hidden {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(20px);
+}
+
+.expanded-content::-webkit-scrollbar { width: 6px; }
+.expanded-content::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+.expanded-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+/* Stop Cards */
+.stop-card {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-left: 4px solid white;
+  transition: all 0.2s;
+}
+
+.stop-card:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateX(4px);
+}
+
+.stop-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.stop-number {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(40, 40, 40, 0.9);
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+}
+
+.stop-name {
+  flex: 1;
+  font-weight: 500;
+  font-size: 14px;
+  color: rgba(40, 40, 40, 0.9);
+  line-height: 1.4;
+}
+
+.stop-date {
+  font-size: 12px;
+  color: rgba(60, 60, 60, 0.8);
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.stop-notes {
+  font-size: 13px;
+  color: rgba(60, 60, 60, 0.85);
+  line-height: 1.5;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(60, 60, 60, 0.8);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Color Picker */
+.color-picker-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.15);
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.color-input {
+  width: 48px;
+  height: 48px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.color-input:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.color-label {
+  font-size: 14px;
+  color: rgba(40, 40, 40, 0.9);
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.3px;
+}
+
+.btn-primary {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+  color: rgba(40, 40, 40, 0.9);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary:hover {
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+}
+
+.divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 20px 0;
+}
+
+.error-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 0, 0, 0.9);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  z-index: 2001;
+}
+</style>
+</head>
+<body>
+
+<div id="loading" class="loading-overlay">
+  <div class="loading-content">
+    <div class="loading-spinner"></div>
+    <h3>Loading Trip Data...</h3>
+    <p>Fetching your adventure details</p>
+  </div>
+</div>
+
+<div id="map"></div>
+<div id="day-buttons" class="day-buttons-container"></div>
+<div id="expanded-content" class="expanded-content hidden"></div>
+
+<script>
+// Global variables
+var map;
+var tripData = {};
+var dayVisible = {};
+var dayRoutes = {};
+var dayMarkers = {};
+var expandedDay = null;
+var totalDays = 0;
+
+// Initialize map
+function initMap() {
+  map = L.map('map').setView([43.0, -71.0], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+}
+
+// CSV Parser
+function parseCSV(csvText) {
+  const lines = csvText.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const data = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let j = 0; j < lines[i].length; j++) {
+      const char = lines[i][j];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        values.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim());
+
+    const row = {};
+    headers.forEach((header, index) => {
+      row[header] = values[index] ? values[index].replace(/"/g, '') : '';
+    });
+    data.push(row);
+  }
+
+  return data;
+}
+
+// Load and process trip data from API
+async function loadTripData() {
+  try {
+    const response = await fetch('/.netlify/functions/trip-data?tripId=1');
+    if (!response.ok) throw new Error('Failed to load trip data from API');
+
+    const apiData = await response.json();
+
+    if (!apiData.success) {
+      throw new Error(apiData.error || 'API returned error');
+    }
+
+    // Use the data directly from API (already in correct format)
+    tripData = apiData.data;
+    totalDays = apiData.totalDays;
+
+    // Initialize visibility
+    for (let i = 1; i <= totalDays; i++) {
+      dayVisible[i] = true;
+      dayRoutes[i] = [];
+      dayMarkers[i] = [];
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error loading trip data:', error);
+    showError('Failed to load trip data from database. Please check your connection and try again.');
+    return false;
+  }
+}
+
+// Format date for display
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  });
+}
+
+function formatFullDate(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+}
+
+// Show error message
+function showError(message) {
+  document.getElementById('loading').classList.add('hidden');
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'error-message';
+  errorDiv.innerHTML = `
+    <h3>⚠️ Error</h3>
+    <p>${message}</p>
+    <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 10px;">Retry</button>
+  `;
+  document.body.appendChild(errorDiv);
+}
+
+// Render day buttons
+function renderDays() {
+  const container = document.getElementById('day-buttons');
+  container.innerHTML = '';
+
+  for (let day = 1; day <= totalDays; day++) {
+    const dayData = tripData[day];
+    if (!dayData) continue;
+
+    const button = document.createElement('div');
+    button.className = 'day-btn';
+    if (expandedDay === day) button.classList.add('expanded');
+
+    // Create button content
+    const mainContent = document.createElement('div');
+    mainContent.className = 'day-btn-main';
+
+    // Color indicator
+    const colorDot = document.createElement('span');
+    colorDot.style.display = 'inline-block';
+    colorDot.style.width = '8px';
+    colorDot.style.height = '8px';
+    colorDot.style.borderRadius = '50%';
+    colorDot.style.backgroundColor = dayData.color;
+
+    // Checkbox for visibility
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = dayVisible[day];
+    checkbox.style.marginRight = '4px';
+    checkbox.style.accentColor = dayData.color;
+    checkbox.onchange = (function(d) {
+      return function(e) {
+        e.stopPropagation();
+        toggleVisibility(d);
+      };
+    })(day);
+
+    const dayText = document.createTextNode(`Day ${day} (${dayData.stops.length})`);
+
+    mainContent.appendChild(checkbox);
+    mainContent.appendChild(colorDot);
+    mainContent.appendChild(dayText);
+
+    // Date display
+    const dateDisplay = document.createElement('div');
+    dateDisplay.className = 'day-btn-date';
+    dateDisplay.textContent = formatDate(dayData.date);
+
+    button.appendChild(mainContent);
+    button.appendChild(dateDisplay);
+
+    // Click handler
+    button.onclick = (function(d) {
+      return function(e) {
+        if (e.target.type !== 'checkbox') toggleDay(d);
+      };
+    })(day);
+
+    container.appendChild(button);
+  }
+
+  // Render expanded content if needed
+  if (expandedDay) {
+    renderExpandedContent(expandedDay);
+  }
+}
+
+// Toggle day expansion
+function toggleDay(day) {
+  if (expandedDay === day) {
+    expandedDay = null;
+    document.getElementById('expanded-content').classList.add('hidden');
+  } else {
+    expandedDay = day;
+  }
+  renderDays();
+}
+
+// Render expanded day content
+function renderExpandedContent(day) {
+  const dayData = tripData[day];
+  const contentContainer = document.getElementById('expanded-content');
+  contentContainer.innerHTML = '';
+  contentContainer.classList.remove('hidden');
+
+  // Title
+  const title = document.createElement('h2');
+  title.style.color = 'rgba(40, 40, 40, 0.9)';
+  title.style.marginBottom = '20px';
+  title.style.fontSize = '20px';
+  title.style.fontWeight = '700';
+  title.style.textShadow = '0 1px 2px rgba(255, 255, 255, 0.4)';
+  title.textContent = `Day ${day} - ${formatFullDate(dayData.date)}`;
+  contentContainer.appendChild(title);
+
+  // Color picker section
+  const colorSection = document.createElement('div');
+  colorSection.style.marginBottom = '24px';
+
+  const colorTitle = document.createElement('div');
+  colorTitle.className = 'section-title';
+  colorTitle.textContent = 'Route Color';
+
+  const colorWrapper = document.createElement('div');
+  colorWrapper.className = 'color-picker-wrapper';
+
+  const colorInput = document.createElement('input');
+  colorInput.type = 'color';
+  colorInput.className = 'color-input';
+  colorInput.value = dayData.color;
+  colorInput.onchange = function() { updateColor(day, this.value); };
+
+  const colorLabel = document.createElement('span');
+  colorLabel.className = 'color-label';
+  colorLabel.textContent = dayData.color;
+  colorInput.oninput = function() { colorLabel.textContent = this.value; };
+
+  colorWrapper.appendChild(colorInput);
+  colorWrapper.appendChild(colorLabel);
+  colorSection.appendChild(colorTitle);
+  colorSection.appendChild(colorWrapper);
+  contentContainer.appendChild(colorSection);
+
+  // Divider
+  const divider = document.createElement('div');
+  divider.className = 'divider';
+  contentContainer.appendChild(divider);
+
+  // Stops section
+  const stopsTitle = document.createElement('div');
+  stopsTitle.className = 'section-title';
+  stopsTitle.textContent = 'Stops';
+  contentContainer.appendChild(stopsTitle);
+
+  // Render stops
+  dayData.stops.forEach(function(stop, idx) {
+    const stopCard = document.createElement('div');
+    stopCard.className = 'stop-card';
+    stopCard.style.borderLeftColor = dayData.color;
+
+    const header = document.createElement('div');
+    header.className = 'stop-header';
+
+    const num = document.createElement('div');
+    num.className = 'stop-number';
+    num.style.backgroundColor = dayData.color;
+    num.textContent = idx + 1;
+
+    const name = document.createElement('div');
+    name.className = 'stop-name';
+    name.textContent = stop.name;
+
+    const dateSpan = document.createElement('div');
+    dateSpan.className = 'stop-date';
+    dateSpan.textContent = formatDate(stop.date);
+
+    // Delete button
+    const deleteBtn = document.createElement('button');
+    deleteBtn.innerHTML = '🗑️';
+    deleteBtn.style.background = 'rgba(255, 0, 0, 0.1)';
+    deleteBtn.style.border = '1px solid rgba(255, 0, 0, 0.3)';
+    deleteBtn.style.borderRadius = '6px';
+    deleteBtn.style.padding = '4px 8px';
+    deleteBtn.style.cursor = 'pointer';
+    deleteBtn.style.fontSize = '14px';
+    deleteBtn.title = 'Delete this stop';
+    deleteBtn.onclick = function() { deleteStop(stop.id, day); };
+
+    header.appendChild(num);
+    header.appendChild(name);
+    header.appendChild(dateSpan);
+    header.appendChild(deleteBtn);
+    stopCard.appendChild(header);
+
+    if (stop.notes) {
+      const notes = document.createElement('div');
+      notes.className = 'stop-notes';
+      notes.textContent = stop.notes;
+      stopCard.appendChild(notes);
+    }
+
+    contentContainer.appendChild(stopCard);
+  });
+
+  // Add new stop button
+  const addStopBtn = document.createElement('button');
+  addStopBtn.className = 'btn btn-primary';
+  addStopBtn.style.width = '100%';
+  addStopBtn.style.marginTop = '16px';
+  addStopBtn.innerHTML = '+ Add New Stop';
+  addStopBtn.onclick = function() { showAddStopForm(day); };
+  contentContainer.appendChild(addStopBtn);
+}
+
+// Update color
+function updateColor(day, color) {
+  tripData[day].color = color;
+  renderDays();
+  redrawDay(day);
+}
+
+// Toggle visibility
+function toggleVisibility(day) {
+  dayVisible[day] = !dayVisible[day];
+  dayRoutes[day].forEach(function(r) {
+    if (dayVisible[day]) r.addTo(map);
+    else map.removeLayer(r);
+  });
+  dayMarkers[day].forEach(function(m) {
+    if (dayVisible[day]) m.addTo(map);
+    else map.removeLayer(m);
+  });
+}
+
+// Redraw day routes and markers
+function redrawDay(day) {
+  dayRoutes[day].forEach(function(r) { map.removeLayer(r); });
+  dayMarkers[day].forEach(function(m) { map.removeLayer(m); });
+  dayRoutes[day] = [];
+  dayMarkers[day] = [];
+
+  const stops = tripData[day].stops;
+  for (let i = 0; i < stops.length; i++) {
+    addMarker(day, stops[i], i);
+    if (i < stops.length - 1) {
+      getRoute(stops[i], stops[i + 1], day);
+    }
+  }
+
+  if (day < totalDays && stops.length > 0 && tripData[day + 1] && tripData[day + 1].stops.length > 0) {
+    getRoute(stops[stops.length - 1], tripData[day + 1].stops[0], day + 1);
+  }
+}
+
+// Add marker to map
+function addMarker(day, stop, idx) {
+  const icon = L.divIcon({
+    html: `<div style="background:${tripData[day].color};width:34px;height:34px;border-radius:50%;border:3px solid white;text-align:center;line-height:34px;color:rgba(40,40,40,0.9);font-weight:700;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.3)">${day}</div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    className: ''
+  });
+
+  const marker = L.marker([stop.lat, stop.lon], {icon: icon});
+  if (dayVisible[day]) marker.addTo(map);
+
+  const popup = `
+    <div style="max-width:280px;font-family:Inter,sans-serif">
+      <div style="font-size:16px;font-weight:600;color:${tripData[day].color};margin-bottom:6px">
+        Day ${day} • Stop ${idx + 1} • ${formatDate(stop.date)}
+      </div>
+      <div style="font-size:13px;color:#333;margin-bottom:8px">${stop.name}</div>
+      ${stop.notes ? `<div style="padding-top:8px;border-top:1px solid #eee;font-size:12px;color:#666;line-height:1.5">${stop.notes}</div>` : ''}
+    </div>
+  `;
+
+  marker.bindPopup(popup);
+  dayMarkers[day].push(marker);
+}
+
+// Get route between two points
+function getRoute(from, to, day) {
+  // Skip if same location
+  if (Math.abs(from.lat - to.lat) < 0.001 && Math.abs(from.lon - to.lon) < 0.001) {
+    return;
+  }
+
+  fetch(`https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson`)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+        const coords = data.routes[0].geometry.coordinates.map(function(c) { return [c[1], c[0]]; });
+        const polyline = L.polyline(coords, { color: tripData[day].color, weight: 5, opacity: 0.8 });
+        if (dayVisible[day]) polyline.addTo(map);
+        dayRoutes[day].push(polyline);
+      } else {
+        createStraightLine(from, to, day);
+      }
+    })
+    .catch(function(error) {
+      console.log('Routing service failed, using straight line for day', day);
+      createStraightLine(from, to, day);
+    });
+}
+
+// Create straight line fallback
+function createStraightLine(from, to, day) {
+  const coords = [[from.lat, from.lon], [to.lat, to.lon]];
+  const polyline = L.polyline(coords, {
+    color: tripData[day].color,
+    weight: 4,
+    opacity: 0.6,
+    dashArray: '10, 5'
+  });
+  if (dayVisible[day]) polyline.addTo(map);
+  dayRoutes[day].push(polyline);
+}
+
+// Initialize everything
+async function init() {
+  initMap();
+
+  const loaded = await loadTripData();
+  if (!loaded) return;
+
+  // Hide loading screen
+  document.getElementById('loading').classList.add('hidden');
+
+  // Calculate bounds for all coordinates
+  const allCoords = [];
+  for (let day = 1; day <= totalDays; day++) {
+    if (tripData[day]) {
+      tripData[day].stops.forEach(function(stop) {
+        allCoords.push([stop.lat, stop.lon]);
+      });
+    }
+  }
+
+  if (allCoords.length > 0) {
+    map.fitBounds(allCoords, {padding: [50, 50]});
+  }
+
+  // Render UI
+  renderDays();
+
+  // Draw routes with delays
+  let d = 1;
+  function processDay() {
+    if (d > totalDays) return;
+    if (tripData[d]) {
+      const stops = tripData[d].stops;
+      for (let i = 0; i < stops.length; i++) {
+        addMarker(d, stops[i], i);
+        if (i < stops.length - 1) {
+          getRoute(stops[i], stops[i + 1], d);
+        }
+      }
+      if (d < totalDays && stops.length > 0 && tripData[d + 1] && tripData[d + 1].stops.length > 0) {
+        getRoute(stops[stops.length - 1], tripData[d + 1].stops[0], d + 1);
+      }
+    }
+    d++;
+    setTimeout(processDay, 300);
+  }
+  processDay();
+}
+
+// CRUD Functions for database operations
+
+// Show add stop form
+function showAddStopForm(day) {
+  const form = document.createElement('div');
+  form.style.position = 'fixed';
+  form.style.top = '50%';
+  form.style.left = '50%';
+  form.style.transform = 'translate(-50%, -50%)';
+  form.style.background = 'rgba(255, 255, 255, 0.95)';
+  form.style.padding = '30px';
+  form.style.borderRadius = '16px';
+  form.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.3)';
+  form.style.zIndex = '3000';
+  form.style.backdropFilter = 'blur(20px)';
+  form.style.maxWidth = '400px';
+  form.style.width = '90%';
+
+  form.innerHTML = `
+    <h3 style="margin-bottom: 20px; color: #333;">Add New Stop - Day ${day}</h3>
+
+    <div style="margin-bottom: 16px;">
+      <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Location Name:</label>
+      <input type="text" id="stopName" placeholder="Enter location or address..."
+             style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Coordinates:</label>
+      <div style="display: flex; gap: 10px;">
+        <input type="number" id="stopLat" placeholder="Latitude" step="any"
+               style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+        <input type="number" id="stopLon" placeholder="Longitude" step="any"
+               style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+      </div>
+      <small style="color: #666; font-size: 12px;">Right-click on Google Maps and select "What's here?" to get coordinates</small>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Notes (optional):</label>
+      <textarea id="stopNotes" placeholder="Add any notes about this stop..."
+                style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; height: 80px; resize: vertical;"></textarea>
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+      <button onclick="closeAddStopForm()"
+              style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: #f0f0f0; color: #333; font-weight: 600; cursor: pointer;">
+        Cancel
+      </button>
+      <button onclick="saveNewStop(${day})"
+              style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: #007bff; color: white; font-weight: 600; cursor: pointer;">
+        Add Stop
+      </button>
+    </div>
+  `;
+
+  // Add backdrop
+  const backdrop = document.createElement('div');
+  backdrop.style.position = 'fixed';
+  backdrop.style.top = '0';
+  backdrop.style.left = '0';
+  backdrop.style.width = '100%';
+  backdrop.style.height = '100%';
+  backdrop.style.background = 'rgba(0, 0, 0, 0.5)';
+  backdrop.style.zIndex = '2999';
+  backdrop.onclick = closeAddStopForm;
+
+  form.id = 'addStopForm';
+  backdrop.id = 'addStopBackdrop';
+
+  document.body.appendChild(backdrop);
+  document.body.appendChild(form);
+
+  // Focus on name input
+  document.getElementById('stopName').focus();
+}
+
+// Close add stop form
+function closeAddStopForm() {
+  const form = document.getElementById('addStopForm');
+  const backdrop = document.getElementById('addStopBackdrop');
+  if (form) form.remove();
+  if (backdrop) backdrop.remove();
+}
+
+// Save new stop to database
+async function saveNewStop(day) {
+  const name = document.getElementById('stopName').value.trim();
+  const latitude = parseFloat(document.getElementById('stopLat').value);
+  const longitude = parseFloat(document.getElementById('stopLon').value);
+  const notes = document.getElementById('stopNotes').value.trim();
+
+  if (!name || isNaN(latitude) || isNaN(longitude)) {
+    alert('Please fill in all required fields with valid data.');
+    return;
+  }
+
+  try {
+    const response = await fetch('/.netlify/functions/trip-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        dayNumber: day,
+        name: name,
+        latitude: latitude,
+        longitude: longitude,
+        notes: notes
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      closeAddStopForm();
+
+      // Reload trip data and refresh UI
+      await loadTripData();
+      renderDays();
+      redrawDay(day);
+
+      alert('Stop added successfully!');
+    } else {
+      alert('Error adding stop: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Error saving stop:', error);
+    alert('Failed to save stop. Please try again.');
+  }
+}
+
+// Delete stop from database
+async function deleteStop(stopId, day) {
+  if (!confirm('Are you sure you want to delete this stop?')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/.netlify/functions/trip-data?stopId=${stopId}`, {
+      method: 'DELETE'
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      // Reload trip data and refresh UI
+      await loadTripData();
+      renderDays();
+      redrawDay(day);
+
+      alert('Stop deleted successfully!');
+    } else {
+      alert('Error deleting stop: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Error deleting stop:', error);
+    alert('Failed to delete stop. Please try again.');
+  }
+}
+
+// Start the application
+init();
+</script>
+</body>
+</html>

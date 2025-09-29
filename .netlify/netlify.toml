@@ -1,0 +1,40 @@
+functionsDirectory = "C:\\Github\\Single File App\\Map\\netlify\\functions"
+functionsDirectoryOrigin = "config-v1"
+headersOrigin = "config"
+plugins = []
+redirects = []
+
+[build]
+publish = "C:\\Github\\Single File App\\Map"
+publishOrigin = "config"
+functions = "C:\\Github\\Single File App\\Map\\netlify\\functions"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[dev]
+functions = "netlify/functions"
+
+[functions]
+
+[functions."*"]
+node_bundler = "esbuild"
+
+[[headers]]
+for = "/api/*"
+
+[headers.values]
+Access-Control-Allow-Origin = "*"
+Access-Control-Allow-Headers = "Content-Type"
+Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"

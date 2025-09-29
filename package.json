@@ -1,0 +1,26 @@
+{
+  "name": "dynamic-trip-planner",
+  "version": "1.0.0",
+  "description": "Dynamic trip planning application with PostgreSQL backend",
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'No build step required'",
+    "deploy": "netlify deploy --prod"
+  },
+  "dependencies": {
+    "pg": "^8.11.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "keywords": [
+    "trip-planner",
+    "maps",
+    "travel",
+    "postgresql",
+    "netlify"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

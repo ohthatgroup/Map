@@ -1,0 +1,15 @@
+day,date,location,lat,lon,notes,color
+1,2025-10-03,"585 E 21st St, Brooklyn NY",40.6089,-73.9570,"Trip starting point - early morning departure",#FF6B6B
+1,2025-10-03,"1349 Main Road, Granville MA",42.0653,-72.8620,"First destination - afternoon arrival",#FF6B6B
+2,2025-10-04,"218 Streeter Rd, Dorchester NH",43.7534,-71.9723,"Mountain views and hiking trails",#4ECDC4
+3,2025-10-05,"134 Burnett Road, Freeport ME",43.8570,-70.1028,"Coastal Maine - LL Bean headquarters",#45B7D1
+4,2025-10-06,"553 Wiscasset Road, Boothbay ME",43.8767,-69.6281,"Boothbay Harbor - lobster dinner",#96CEB4
+5,2025-10-07,"Farview Dr, Winter Harbor ME",44.3932,-68.0864,"Acadia National Park area",#FFEAA7
+6,2025-10-08,"Camden, Maine",44.2098,-69.0648,"Picturesque harbor town",#DFE6E9
+7,2025-10-09,"Portland, Maine",43.6230,-70.2077,"Food scene and Old Port district",#74B9FF
+8,2025-10-10,"Salem, Massachusetts",42.5195,-70.8967,"Witch trials history and museums",#A29BFE
+9,2025-10-11,"Salem, Massachusetts",42.5195,-70.8967,"Extended stay - more exploration",#FD79A8
+10,2025-10-12,"Cape Cod, Massachusetts",42.0533,-70.1710,"Beach relaxation and seafood",#FDCB6E
+11,2025-10-13,"Newport, Rhode Island",41.4901,-71.3128,"Mansions tour and cliff walk",#6C5CE7
+12,2025-10-14,"Mystic, Connecticut",41.3612,-71.9662,"Mystic Seaport and aquarium",#00B894
+13,2025-10-15,"585 E 21st St, Brooklyn NY",40.6089,-73.9570,"Return home - end of amazing trip",#FF7675
